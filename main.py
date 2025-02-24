@@ -4,10 +4,8 @@ from llama_index.llms.groq import Groq
 from dotenv import load_dotenv
 import os
 
-# Load the environment variables from .env file
+# Load environment variables
 load_dotenv()
-
-# Fetch the API key from the environment variable
 api_key = os.getenv("GROQ_API_KEY")
 
 def initialize_llm(model_type):
@@ -17,21 +15,28 @@ def summarize_text(llm, text, summary_type):
     if summary_type == "Long Summary":
         prompt = f"Give a summary of the text: {text}"
     elif summary_type == "Short Summary":
-        prompt = f"Give a 100 word summary of the text: {text}"
+        prompt = f"Give a 100-word summary of the text: {text}"
     elif summary_type == "Creative Summary":
         prompt = f"Give a creative summary of the text: {text}"
     elif summary_type == "Bullet Point Summary":
         prompt = f"Give a summary of the text in 3 bullet points: {text}"
 
     response = llm.complete(prompt)
-    return response
+
+    # Ensure response is valid and extract the actual summary text
+    if isinstance(response, dict) and 'text' in response:
+        return response['text'].strip()
+    elif hasattr(response, 'text'):
+        return response.text.strip()
+    else:
+        return "Error: Could not retrieve clean summary."
 
 def extract_text_from_pdf(pdf_file):
     text = ""
     with pdfplumber.open(pdf_file) as pdf:
         for page in pdf.pages:
-            text += page.extract_text()
-    return text
+            text += page.extract_text() or ""  # Handle cases where text extraction fails
+    return text.strip()
 
 # Streamlit app
 st.title("📄 Text Summarizer 🤖")
@@ -45,7 +50,7 @@ if uploaded_file:
 else:
     extracted_text = ""
 
-# Text input area with locked editing
+# Display extracted text in a non-editable text area
 text_area = st.text_area("Extracted text from PDF", value=extracted_text, height=300, disabled=True)
 
 # Dropdown for summary type
@@ -70,8 +75,8 @@ if st.button("Generate Summary"):
         st.write(f"### {summary_type} using {model_type}")
         st.write(summary)
     else:
-        st.write("Please upload a PDF to summarize.")
+        st.warning("Please upload a PDF to summarize.")
 
-# Add a footer
+# Footer
 st.markdown("---")
 st.markdown("Made by Aadhira")
